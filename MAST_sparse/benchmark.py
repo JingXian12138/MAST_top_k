@@ -60,11 +60,16 @@ def test(dataloader, model, log):
 
     torch.backends.cudnn.benchmark = True
 
+    Fs = AverageMeter()
+    Js = AverageMeter()
 
     n_b = len(dataloader)
 
     log.info("Start testing.")
     for b_i, (images_rgb, annotations) in enumerate(dataloader):
+        # if b_i == 1:
+        #     break
+        fb = AverageMeter(); jb = AverageMeter()
 
         images_rgb = [r.cuda() for r in images_rgb]
         annotations = [q.cuda() for q in annotations]
@@ -73,6 +78,8 @@ def test(dataloader, model, log):
         outputs = [annotations[0].contiguous()]
 
         for i in range(N-1):
+            # if i > 5:
+            #     break
             mem_gap = 2
             # ref_index = [i]
             if args.ref == 0:
@@ -102,6 +109,18 @@ def test(dataloader, model, log):
                 output = torch.argmax(_output, 1, keepdim=True).float()
                 outputs.append(output)
 
+            js, fs = [], []
+
+            for classid in range(1, max_class + 1):
+                obj_true = (anno_1 == classid).cpu().numpy()[0, 0]
+                obj_pred = (output == classid).cpu().numpy()[0, 0]
+
+                f = db_eval_boundary(obj_true, obj_pred)
+                j = db_eval_iou(obj_true, obj_pred)
+
+                fs.append(f); js.append(j)
+                Fs.update(f); Js.update(j)
+
             ###
             folder = os.path.join(args.savepath,'benchmark')
             if not os.path.exists(folder): os.mkdir(folder)
@@ -125,6 +144,32 @@ def test(dataloader, model, log):
             out_img = np.pad(out_img, pad, 'edge').astype(np.uint8)
             imwrite_indexed(output_file, out_img)
 
+        info = '\t'.join(['Js: ({:.3f}). Fs: ({:.3f}).'
+                          .format(Js.avg, Fs.avg)])
+
+        log.info('[{}/{}] {}'.format( b_i, n_b, info ))
+
+    return Js.avg
+
+
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
+
 
 
 if __name__ == '__main__':
@@ -134,7 +179,7 @@ if __name__ == '__main__':
     parser.add_argument('--ref', type=int, default=1)
 
     parser.add_argument('--datapath', help='Data path for Davis', default='/dataset/dusen/DAVIS/')
-    parser.add_argument('--savepath', type=str, default='results/',
+    parser.add_argument('--savepath', type=str, default='results_sparse/',
                         help='Path for checkpoints and logs')
     parser.add_argument('--resume', type=str, help='Checkpoint file to resume', default='../checkpoint.pt')
 

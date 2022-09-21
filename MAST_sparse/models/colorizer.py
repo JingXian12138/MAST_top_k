@@ -5,6 +5,7 @@ from .submodule import one_hot
 from spatial_correlation_sampler import SpatialCorrelationSampler
 from .deform_im2col_util import deform_im2col
 import pdb
+import numpy as np
 
 class Colorizer(nn.Module):
     def __init__(self, D=4, R=6, C=32):
@@ -91,6 +92,16 @@ class Colorizer(nn.Module):
             corrs.append(self.correlation_sampler(feats_t, feats_r[ind]))
             _, _, _, h1, w1 = corrs[-1].size()
             corrs[ind] = corrs[ind].reshape([b, self.P*self.P, h1*w1])
+
+        # 对参考域中的像素点进行选择，只挑选较大的那部分
+        for c in corrs:
+            # print("c.shape", c.shape) # 1,625,27360
+            # print(type(c))
+            med = torch.median(c, axis=1).values
+            c[c<med] = 0
+
+        # print("len(corr)", len(corrs))
+        # print("corr[0].shape", corrs[0].shape)
 
         corr = torch.cat(corrs, 1)  # b,nref*N,HW
         corr = F.softmax(corr, dim=1)
