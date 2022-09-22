@@ -179,7 +179,7 @@ if __name__ == '__main__':
     parser.add_argument('--ref', type=int, default=1)
 
     parser.add_argument('--datapath', help='Data path for Davis', default='/dataset/dusen/DAVIS/')
-    parser.add_argument('--savepath', type=str, default='results_sparse/',
+    parser.add_argument('--savepath', type=str, default='results_sparse_max/',
                         help='Path for checkpoints and logs')
     parser.add_argument('--resume', type=str, help='Checkpoint file to resume', default='../checkpoint.pt')
 

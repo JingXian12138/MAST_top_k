@@ -97,8 +97,9 @@ class Colorizer(nn.Module):
         for c in corrs:
             # print("c.shape", c.shape) # 1,625,27360
             # print(type(c))
-            med = torch.median(c, axis=1).values
-            c[c<med] = 0
+            # med = torch.median(c, axis=1).values
+            max = torch.max(c, dim=1).values
+            c[c<max] = 0
 
         # print("len(corr)", len(corrs))
         # print("corr[0].shape", corrs[0].shape)
