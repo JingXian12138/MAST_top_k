@@ -67,6 +67,9 @@ class Colorizer(nn.Module):
         N = self.P * self.P
         corrs = []
 
+        query_values = []
+        query_indexs = []
+
         # offset0 = []
         for searching_index in range(nsearch):
             ##### GET OFFSET HERE.  (b,h,w,2)
@@ -88,21 +91,37 @@ class Colorizer(nn.Module):
             corr = corr.reshape([b, self.P * self.P, h * w])
             corrs.append(corr)
 
+        # 用correlation_sampler计算i+1帧和i,i-2,i-4帧的corr（相关程度）
         for ind in range(nsearch, nref):
-            corrs.append(self.correlation_sampler(feats_t, feats_r[ind]))
+            # corrs.append(self.correlation_sampler(feats_t, feats_r[ind]))
+            # _, _, _, h1, w1 = corrs[-1].size()
+            # corrs[ind] = corrs[ind].reshape([b, self.P*self.P, h1*w1])
+            corr_tmp = self.correlation_sampler(feats_t, feats_r[ind])
+
+            
+
+            corrs.append(corr_tmp)
             _, _, _, h1, w1 = corrs[-1].size()
-            corrs[ind] = corrs[ind].reshape([b, self.P*self.P, h1*w1])
+            corrs[ind] = corrs[ind].reshape([b, self.P*self.P, h1*w1]) # 1,625,27360
 
-        # 对参考域中的像素点进行选择，只挑选较大的那部分
-        for c in corrs:
-            # print("c.shape", c.shape) # 1,625,27360
-            # print(type(c))
-            # med = torch.median(c, axis=1).values
-            max = torch.max(c, dim=1).values
-            c[c<max] = 0
+            # print("corrs[ind].shape", corrs[ind].shape)
 
-        # print("len(corr)", len(corrs))
-        # print("corr[0].shape", corrs[0].shape)
+            max_query = torch.max(corrs[ind], dim=1)
+            max_query_values = max_query.values
+            # print("max_query_values.shape", max_query_values.shape) torch.Size([1, 27360])
+            max_query_indices = max_query.indices
+            # print("max_query_indices[0]", max_query_indices)
+            # print("max_query_indices.shape", max_query_indices.shape) torch.Size([1, 27360])
+
+            
+
+        # # 对参考域中的像素点进行选择，只挑选较大的那部分
+        # for c in corrs:
+        #     # print("c.shape", c.shape) # 1,625,27360
+        #     # print(type(c))
+        #     # med = torch.median(c, axis=1).values
+        #     max = torch.max(c, dim=1).values
+        #     c[c<max] = 0
 
         corr = torch.cat(corrs, 1)  # b,nref*N,HW
         corr = F.softmax(corr, dim=1)
@@ -110,8 +129,11 @@ class Colorizer(nn.Module):
 
         qr = [self.prep(qr, (h,w)) for qr in quantized_r]
 
-        im_col0 = [deform_im2col(qr[i], offset0, kernel_size=self.P)  for i in range(nsearch)]# b,3*N,h*w
+
+        # 长期记忆im_col0和短期记忆im_col1
+        im_col0 = [deform_im2col(qr[i], offset0, kernel_size=self.P)  for i in range(nsearch)] # b,3*N,h*w
         im_col1 = [F.unfold(r, kernel_size=self.P, padding =self.R) for r in qr[nsearch:]]
+        print("im_col1.shape: ", im_col1[0].shape)
         image_uf = im_col0 + im_col1
 
         image_uf = [uf.reshape([b,qr[0].size(1),self.P*self.P,h*w]) for uf in image_uf]
