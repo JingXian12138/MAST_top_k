@@ -67,6 +67,8 @@ def test(dataloader, model, log):
 
     log.info("Start testing.")
     for b_i, (images_rgb, annotations) in enumerate(dataloader):
+        if b_i == 1:
+            break
         fb = AverageMeter(); jb = AverageMeter()
 
         images_rgb = [r.cuda() for r in images_rgb]
@@ -76,8 +78,8 @@ def test(dataloader, model, log):
         outputs = [annotations[0].contiguous()]
 
         for i in range(N-1):
-            # if i == 1:
-            #     break
+            if i == 2:
+                break
             mem_gap = 2
             # ref_index = [i]
             if args.ref == 0:
@@ -178,7 +180,7 @@ if __name__ == '__main__':
     parser.add_argument('--ref', type=int, default=1)
 
     parser.add_argument('--datapath', help='Data path for Davis', default='/dataset/dusen/DAVIS/')
-    parser.add_argument('--savepath', type=str, default='results_sparse_max/',
+    parser.add_argument('--savepath', type=str, default='results_sparse_max_1/',
                         help='Path for checkpoints and logs')
     parser.add_argument('--resume', type=str, help='Checkpoint file to resume', default='../checkpoint.pt')
 

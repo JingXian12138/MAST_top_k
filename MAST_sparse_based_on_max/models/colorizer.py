@@ -57,6 +57,9 @@ class Colorizer(nn.Module):
         :param mode:
         :return:
         """
+
+        dil_int = 1
+
         # For frame interval < dil_int, no need for deformable resampling
         nref = len(feats_r)
         nsearch = len([x for x in ref_index if current_ind - x > dil_int])
@@ -66,11 +69,24 @@ class Colorizer(nn.Module):
         b,c,h,w = feats_t.size()
         N = self.P * self.P
         corrs = []
-
+        
         query_values = []
         query_indexs = []
 
+        query_images = []
+
+        # print("quantized_r[0].shape", quantized_r[0].shape) # 1,1,480,910
+        # 测试时标签改为独热编码(最多为7类因此维度为7,人为设定)
+        qr = [self.prep(qr, (h,w)) for qr in quantized_r] # qr[0].shape 1,7,120,228 
+
+        
+        # # 长期记忆im_col0和短期记忆im_col1
+        # im_col0 = [deform_im2col(qr[i], offset0, kernel_size=self.P)  for i in range(nsearch)] # b,3*N,h*w
+        # im_col1 = [F.unfold(r, kernel_size=self.P, padding =self.R) for r in qr[nsearch:]]
+        # # print("im_col1[0].shape: ", im_col1[0].shape) # 1,4375,27360 # 1,7*25*25,120*228
+        # image_uf = im_col0 + im_col1
         # offset0 = []
+        print("nsearch: ",nsearch)
         for searching_index in range(nsearch):
             ##### GET OFFSET HERE.  (b,h,w,2)
             samplerindex = dirates[searching_index]-2
@@ -84,12 +100,13 @@ class Colorizer(nn.Module):
             offset0 = (coarse_search_correlation * grid ).sum(1).sum(1) * dirates[searching_index]  # 1,h,w,2
 
             col_0 = deform_im2col(feats_r[searching_index], offset0, kernel_size=self.P)  # b,c*N,h*w
+            exit(0)
             col_0 = col_0.reshape(b,c,N,h,w)
             ##
             corr = (feats_t.unsqueeze(2) * col_0).sum(1)   # (b, N, h, w)
 
             corr = corr.reshape([b, self.P * self.P, h * w])
-            corrs.append(corr)
+            # corrs.append(corr)
             max_query = torch.max(corr, dim=1, keepdim=True)
             max_query_values = max_query.values
             # print("max_query_values.shape", max_query_values.shape) # torch.Size([1, 1, 27360])
@@ -97,75 +114,105 @@ class Colorizer(nn.Module):
             # print("max_query_indices[0]", max_query_indices)
             # print("max_query_indices.shape", max_query_indices.shape) # torch.Size([1, 1, 27360])
             query_values.append(max_query_values)
-            query_indexs.append(max_query_indices)
 
+            long_img_tmp = process_long_image_uf(qr[searching_index], offset0, max_query_indices)
+            query_images.append(long_img_tmp)
+
+            
+
+            # deform_im2col(qr[i], offset0, kernel_size=self.P)
+
+        
         # 用correlation_sampler计算i+1帧和i,i-2,i-4帧的corr（相关程度）
+        corr_tmp = torch.zeros([b, self.P, self.P, h, w], device=qr[0].device).contiguous()
+        corr_tmp_r = torch.zeros([b, self.P*self.P, h*w], device=qr[0].device).contiguous()
         for ind in range(nsearch, nref):
             # corrs.append(self.correlation_sampler(feats_t, feats_r[ind]))
             # _, _, _, h1, w1 = corrs[-1].size()
             # corrs[ind] = corrs[ind].reshape([b, self.P*self.P, h1*w1])
             corr_tmp = self.correlation_sampler(feats_t, feats_r[ind])
-            corrs.append(corr_tmp)
-            _, _, _, h1, w1 = corrs[-1].size()
-            corrs[ind] = corrs[ind].reshape([b, self.P*self.P, h1*w1]) # 1,625,27360
-
-            # print("corrs[ind].shape", corrs[ind].shape)
-
-            max_query = torch.max(corrs[ind], dim=1, keepdim=True)
+            _, _, _, h1, w1 = corr_tmp.size()
+            corr_tmp_r = corr_tmp.reshape([b, self.P*self.P, h1*w1]) # 1,625,27360
+            max_query = torch.max(corr_tmp_r, dim=1, keepdim=True)
             max_query_values = max_query.values
             # print("max_query_values.shape", max_query_values.shape) # torch.Size([1, 1, 27360])
             max_query_indices = max_query.indices
-            # print("max_query_indices[0]", max_query_indices)
-            # print("max_query_indices.shape", max_query_indices.shape) # torch.Size([1, 1, 27360])
             query_values.append(max_query_values)
-            query_indexs.append(max_query_indices)
+            # query_indexs.append(max_query_indices)
 
+            img_uf = process_short_image_uf(qr[ind], max_query_indices)
+            query_images.append(img_uf)
 
-        # # 对参考域中的像素点进行选择，只挑选较大的那部分
-        # for c in corrs:
-        #     # print("c.shape", c.shape) # 1,625,27360
-        #     # print(type(c))
-        #     # med = torch.median(c, axis=1).values
-        #     max = torch.max(c, dim=1).values
-        #     c[c<max] = 0
-
-        corr = torch.cat(corrs, 1)  # b,nref*N,HW
-        corr = F.softmax(corr, dim=1)
-        corr = corr.unsqueeze(1) # b,1,25*25*N,HW
 
         corr_max = torch.cat(query_values, dim=1) # b,1*N,HW
         corr_max = F.softmax(corr_max, dim=1)
         corr_max = corr_max.unsqueeze(1) # b,1,1*N,HW
 
-        # print("quantized_r[0].shape", quantized_r[0].shape) # 1,1,480,910
-        # 测试时标签改为独热编码(最多为7类因此维度为7,人为设定)
-        qr = [self.prep(qr, (h,w)) for qr in quantized_r] # qr[0].shape 1,7,120,228 
-
-        # 长期记忆im_col0和短期记忆im_col1
-        im_col0 = [deform_im2col(qr[i], offset0, kernel_size=self.P)  for i in range(nsearch)] # b,3*N,h*w
-        im_col1 = [F.unfold(r, kernel_size=self.P, padding =self.R) for r in qr[nsearch:]]
-        # print("im_col1[0].shape: ", im_col1[0].shape) # 1,4375,27360 # 1,7*25*25,120*228
-        image_uf = im_col0 + im_col1
-
-        image_uf = [uf.reshape([b,qr[0].size(1),self.P*self.P,h*w]) for uf in image_uf]
-        # print("image_uf[0].shape", image_uf[0].shape) # 1,7,625,27360
-        new_image_uf = process_image_uf(image_uf, query_indexs)
-        
-        image_uf = torch.cat(image_uf, 2)
-        new_image_uf = torch.cat(new_image_uf, 2)
-
+        new_image_uf = torch.cat(query_images, 2)
         new_out = (corr_max * new_image_uf).sum(2).reshape([b,qr[0].size(1),h,w])
-        # print("new_out.shape", new_out.shape)
+        return new_out
+
+        # print("image_uf.shape", image_uf.shape)
+
+        # exit(0)
+
+        #     # corrs.append(self.correlation_sampler(feats_t, feats_r[ind]))
+        #     # _, _, _, h1, w1 = corrs[-1].size()
+        #     # corrs[ind] = corrs[ind].reshape([b, self.P*self.P, h1*w1]) # 1,625,27360
+
+        #     # # print("corrs[ind].shape", corrs[ind].shape)
+
+        #     # max_query = torch.max(corrs[ind], dim=1, keepdim=True)
+        #     # max_query_values = max_query.values
+        #     # # print("max_query_values.shape", max_query_values.shape) # torch.Size([1, 1, 27360])
+        #     # max_query_indices = max_query.indices
+        #     # # print("max_query_indices[0]", max_query_indices)
+        #     # # print("max_query_indices.shape", max_query_indices.shape) # torch.Size([1, 1, 27360])
+        #     # query_values.append(max_query_values)
+        #     # query_indexs.append(max_query_indices)
+
+
+        # # # 对参考域中的像素点进行选择，只挑选较大的那部分
+        # # for c in corrs:
+        # #     # print("c.shape", c.shape) # 1,625,27360
+        # #     # print(type(c))
+        # #     # med = torch.median(c, axis=1).values
+        # #     max = torch.max(c, dim=1).values
+        # #     c[c<max] = 0
+
+        # corr = torch.cat(corrs, 1)  # b,nref*N,HW
+        # corr = F.softmax(corr, dim=1)
+        # corr = corr.unsqueeze(1) # b,1,25*25*N,HW
+
+        # corr_max = torch.cat(query_values, dim=1) # b,1*N,HW
+        # corr_max = F.softmax(corr_max, dim=1)
+        # corr_max = corr_max.unsqueeze(1) # b,1,1*N,HW
+
+        
+
+        # # 长期记忆im_col0和短期记忆im_col1
+        # im_col0 = [deform_im2col(qr[i], offset0, kernel_size=self.P)  for i in range(nsearch)] # b,3*N,h*w
+        # im_col1 = [F.unfold(r, kernel_size=self.P, padding =self.R) for r in qr[nsearch:]]
+        # # print("im_col1[0].shape: ", im_col1[0].shape) # 1,4375,27360 # 1,7*25*25,120*228
+        # image_uf = im_col0 + im_col1
+
+        # image_uf = [uf.reshape([b,qr[0].size(1),self.P*self.P,h*w]) for uf in image_uf]
+        # # print("image_uf[0].shape", image_uf[0].shape) # 1,7,625,27360
+        # new_image_uf = process_image_uf(image_uf, query_indexs)
+        # new_image_uf = torch.cat(new_image_uf, 2)
+
+        # new_out = (corr_max * new_image_uf).sum(2).reshape([b,qr[0].size(1),h,w])
+        # # print("new_out.shape", new_out.shape)
 
         
 
 
-        # print("corr.shape", corr.shape) #1,1,625*N,HW
-        # print("image_uf.shape", image_uf.shape) # 1,7,625*N,HW
+        # # print("corr.shape", corr.shape) #1,1,625*N,HW
+        # # print("image_uf.shape", image_uf.shape) # 1,7,625*N,HW
 
-        # out = (corr * image_uf).sum(2).reshape([b,qr[0].size(1),h,w])
-        # print("out.shape", out.shape) # b,qr[0].size(1),h,w
-        return new_out
+        # # out = (corr * image_uf).sum(2).reshape([b,qr[0].size(1),h,w])
+        # # print("out.shape", out.shape) # b,qr[0].size(1),h,w
+        # return new_out
 
 def torch_unravel_index(indices, shape):
     rows = indices / shape[0]
@@ -194,27 +241,37 @@ def process_image_uf(image_uf, query_indexs):
     return new_image_uf
 
 
+def process_short_image_uf(q, indices):
+    # q.shape 1,7,120,228 
+    # indices.shape 1,1,27360
+    # return image_uf_max 1,7,1,27360
+    b,c,h,w = q.size()
+    tmp = torch.zeros([b,c,1,h*w], device=q.device).contiguous()
+    for r in range(h):
+        for c in range(w):
+            ind = r*w + c
+            q_ind = indices[0][0][ind]
+            dr = int(q_ind/25) - 12
+            dc = q_ind%25 - 12
+            tmp[0,:,0,ind] = q[0,:,r+dr,c+dc]
+    return tmp
+
+
+def process_long_image_uf(q, offset, indices):
+    # q.shape 1,7,120,228 
+    # indices.shape 1,1,27360
+    # return image_uf_max 1,7,1,27360
+
+    # b,c,h,w = q.size()
+    # tmp = torch.zeros([b,c,1,h*w], device=q.device).contiguous()
+
+    # print("offset.shape", offset.shape) # [1, 120, 228, 2]
+    print("#####")
+    print(torch.max(offset))
+    print(torch.min(offset))
 
 
 
-def process_short(qr, query_indexs, nsearch):
-    # qr[0] 1,7,120,228 # 原图片的1/4
-
-    print("process short image")
-    # print(len(qr)) # 1
-    # print(len(query_indexs)) # 1
-    # print(nsearch) # 0  
-
-    # print(qr[0].shape) # 1,7,120,228
-    # print(query_indexs[0].shape) # 1,1,27360
-    _,_,h,w = qr[0].size()
-    for frame in range(nsearch, len(qr)):
-        query = query_indexs[frame] # 1,1,27360
-        f = torch.zeros(qr[frame].shape)
-        for ind in range(h*w):
-            r = int(ind/w)
-            c = ind%w
-            f[0,:,r,c] = qr[frame][0,:,r,c]
 
 
     # 理论上应该不需要先unfold再挑选的，但是第一个版本可以这样，后面再优化
