@@ -67,8 +67,6 @@ def test(dataloader, model, log):
 
     log.info("Start testing.")
     for b_i, (images_rgb, annotations) in enumerate(dataloader):
-        if b_i == 1:
-            break
         fb = AverageMeter(); jb = AverageMeter()
 
         images_rgb = [r.cuda() for r in images_rgb]
@@ -78,8 +76,8 @@ def test(dataloader, model, log):
         outputs = [annotations[0].contiguous()]
 
         for i in range(N-1):
-            if i > 5:
-                break
+            # if i == 1:
+            #     break
             mem_gap = 2
             # ref_index = [i]
             if args.ref == 0:
@@ -92,6 +90,7 @@ def test(dataloader, model, log):
             else:
                 raise NotImplementedError
 
+            # print("ref_index", ref_index)
             rgb_0 = [images_rgb[ind] for ind in ref_index]
             rgb_1 = images_rgb[i+1]
 
