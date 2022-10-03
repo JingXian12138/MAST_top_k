@@ -78,12 +78,10 @@ def test(dataloader, model, log):
         outputs = [annotations[0].contiguous()]
 
         for i in range(N-1):
-            if i == 2:
-                break
             mem_gap = 2
             # ref_index = [i]
             if args.ref == 0:
-                ref_index = list(filter(lambda x: x <= i, [0, 5])) + list(filter(lambda x:x>0,range(i,i-mem_gap*3,-mem_gap)))[::-1]
+                ref_index = list(filter(lambda x: x <= i, [0, 5])) + list(filter(lambda x:x>0,range(i,i-mem_gap*15,-mem_gap)))[::-1]
                 ref_index = sorted(list(set(ref_index)))
             elif args.ref == 1:
                 ref_index = [0] + list(filter(lambda x: x > 0, range(i, i - mem_gap * 3, -mem_gap)))[::-1]
@@ -177,7 +175,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='MAST')
 
     # Data options
-    parser.add_argument('--ref', type=int, default=1)
+    parser.add_argument('--ref', type=int, default=0)
 
     parser.add_argument('--datapath', help='Data path for Davis', default='/dataset/dusen/DAVIS/')
     parser.add_argument('--savepath', type=str, default='results_sparse_max_1/',

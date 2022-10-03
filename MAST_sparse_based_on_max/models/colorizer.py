@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from .submodule import one_hot
 from spatial_correlation_sampler import SpatialCorrelationSampler
 from .deform_im2col_util import deform_im2col
+from .deform_im2col_util import deform_im2col_max
 import pdb
 import numpy as np
 
@@ -57,9 +58,6 @@ class Colorizer(nn.Module):
         :param mode:
         :return:
         """
-
-        dil_int = 1
-
         # For frame interval < dil_int, no need for deformable resampling
         nref = len(feats_r)
         nsearch = len([x for x in ref_index if current_ind - x > dil_int])
@@ -87,6 +85,7 @@ class Colorizer(nn.Module):
         # image_uf = im_col0 + im_col1
         # offset0 = []
         print("nsearch: ",nsearch)
+        print("nref: ",nref)
         for searching_index in range(nsearch):
             ##### GET OFFSET HERE.  (b,h,w,2)
             samplerindex = dirates[searching_index]-2
@@ -100,7 +99,8 @@ class Colorizer(nn.Module):
             offset0 = (coarse_search_correlation * grid ).sum(1).sum(1) * dirates[searching_index]  # 1,h,w,2
 
             col_0 = deform_im2col(feats_r[searching_index], offset0, kernel_size=self.P)  # b,c*N,h*w
-            exit(0)
+            # deform_im2col(qr[0], offset0, kernel_size=self.P)
+            # exit(0)
             col_0 = col_0.reshape(b,c,N,h,w)
             ##
             corr = (feats_t.unsqueeze(2) * col_0).sum(1)   # (b, N, h, w)
@@ -115,7 +115,9 @@ class Colorizer(nn.Module):
             # print("max_query_indices.shape", max_query_indices.shape) # torch.Size([1, 1, 27360])
             query_values.append(max_query_values)
 
-            long_img_tmp = process_long_image_uf(qr[searching_index], offset0, max_query_indices)
+            long_img_tmp = process_long_image_uf(qr[searching_index], offset0, max_query_indices).unsqueeze(2)
+            # print("long_img_tmp.shape", long_img_tmp.shape) # 1,7,27360
+            
             query_images.append(long_img_tmp)
 
             
@@ -256,21 +258,63 @@ def process_short_image_uf(q, indices):
             tmp[0,:,0,ind] = q[0,:,r+dr,c+dc]
     return tmp
 
+def image_meshgrid_from(x):
+    # input: b,c,h,w
+    # output: b,c,h,2
+    shape = x.shape  # assume b,c,h,w
+    _y, _x = torch.meshgrid(torch.arange(shape[2]), torch.arange(shape[3]))
+    grid = torch.stack([_x, _y], dim=-1)
+    return torch.stack([grid] * shape[0], dim=0).type(x.type()).to(x.device)
 
-def process_long_image_uf(q, offset, indices):
-    # q.shape 1,7,120,228 
+def normalize_meshgrid(grid):
+    # normalize wrt to image size
+    # input: b,h,w,2
+    # output: b,h,w,2 (range = [-1,1])
+    grid_new = torch.zeros_like(grid)
+    b, h, w, _ = grid.shape
+    grid_new[..., 0] = grid[..., 0] / (w - 1) * 2 - 1
+    grid_new[..., 1] = grid[..., 1] / (h - 1) * 2 - 1
+    return grid_new
+
+def process_long_image_uf(im, offset, indices):
+    # im.shape 1,7,120,228 
     # indices.shape 1,1,27360
     # return image_uf_max 1,7,1,27360
 
-    # b,c,h,w = q.size()
+    # b,c,h,w = im.size()
     # tmp = torch.zeros([b,c,1,h*w], device=q.device).contiguous()
 
     # print("offset.shape", offset.shape) # [1, 120, 228, 2]
-    print("#####")
-    print(torch.max(offset))
-    print(torch.min(offset))
 
+    with torch.no_grad():
+        grid = image_meshgrid_from(im)
+        b, c, h, w = im.shape
+    
+    for r in range(h):
+        for c in range(w):
+            ind = r*w + c
+            q_ind = indices[0][0][ind]
+            dr = int(q_ind/25) - 12 # y
+            dc = q_ind%25 - 12 # x
+            offset[0][r][c][0] += dc
+            offset[0][r][c][0] += dr
 
+    return deform_im2col(im, offset, 1)
+    # kernel_size = 1
+    # N = kernel_size * kernel_size
+
+    # grid_ = torch.zeros(b * N, h, w, 2,  device=im.device).contiguous() # 625,120,228,2
+    # im_ = im.repeat(N, 1, 1, 1) # 625,7,120,228
+
+    # for dy in range(kernel_size):
+    #     for dx in range(kernel_size):
+    #         grid_[(dy * kernel_size + dx) * b:(dy * kernel_size + dx + 1) * b] =\
+    #             grid + offset + torch.tensor([dx - kernel_size // 2, dy - kernel_size // 2])[None, None, None, :].float().to(im.device)
+
+    # out = F.grid_sample(im_.contiguous(), normalize_meshgrid(grid_).contiguous())
+    # out = out.reshape(N, b, c, h * w).permute(1,2,0,3)
+
+    # return out.reshape(b, kernel_size * kernel_size * c, h * w)
 
 
 
@@ -289,4 +333,5 @@ def process_long_image_uf(q, offset, indices):
     #         tmp[:,:,j] = qr[i][:,:,r,c]
     #     res.append(tmp)
 
-    
+
+
