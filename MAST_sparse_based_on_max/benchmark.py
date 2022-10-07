@@ -15,7 +15,9 @@ from models.mast import MAST
 from functional.utils.io import imwrite_indexed
 
 import logger
-
+from gpu_mem_track import MemTracker
+import inspect
+from models import global_vars
 
 def main():
     args.training = False
@@ -31,9 +33,7 @@ def main():
         DL.myImageFloder(TrainData[0], TrainData[1], False),
         batch_size=1, shuffle=False,num_workers=0,drop_last=False
     )
-
     model = MAST(args)
-
     log.info('Number of model parameters: {}'.format(sum([p.data.nelement() for p in model.parameters()])))
 
     if args.resume:
@@ -50,7 +50,6 @@ def main():
     model = nn.DataParallel(model).cuda()
 
     start_full_time = time.time()
-
     test(TrainImgLoader, model, log)
 
     log.info('full testing time = {:.2f} Hours'.format((time.time() - start_full_time) / 3600))
@@ -66,9 +65,8 @@ def test(dataloader, model, log):
     n_b = len(dataloader)
 
     log.info("Start testing.")
+
     for b_i, (images_rgb, annotations) in enumerate(dataloader):
-        if b_i == 1:
-            break
         fb = AverageMeter(); jb = AverageMeter()
 
         images_rgb = [r.cuda() for r in images_rgb]
@@ -81,16 +79,19 @@ def test(dataloader, model, log):
             mem_gap = 2
             # ref_index = [i]
             if args.ref == 0:
-                ref_index = list(filter(lambda x: x <= i, [0, 5])) + list(filter(lambda x:x>0,range(i,i-mem_gap*15,-mem_gap)))[::-1]
+                ref_index = list(filter(lambda x: x <= i, [0, 5])) + list(filter(lambda x:x>0,range(i,i-mem_gap*3,-mem_gap)))[::-1]
                 ref_index = sorted(list(set(ref_index)))
             elif args.ref == 1:
                 ref_index = [0] + list(filter(lambda x: x > 0, range(i, i - mem_gap * 3, -mem_gap)))[::-1]
             elif args.ref == 2:
                 ref_index = [i]
+            elif args.ref == 3:
+                ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*15,-mem_gap)))[::-1]
+                ref_index = sorted(list(set(ref_index)))
             else:
                 raise NotImplementedError
 
-            # print("ref_index", ref_index)
+            print("frame: ", i+1, " ref_index", ref_index)
             rgb_0 = [images_rgb[ind] for ind in ref_index]
             rgb_1 = images_rgb[i+1]
 
@@ -171,17 +172,23 @@ class AverageMeter(object):
 
 
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='MAST')
 
     # Data options
-    parser.add_argument('--ref', type=int, default=0)
+    parser.add_argument('--ref', type=int, default=3)
 
     parser.add_argument('--datapath', help='Data path for Davis', default='/dataset/dusen/DAVIS/')
-    parser.add_argument('--savepath', type=str, default='results_sparse_max_1/',
+    parser.add_argument('--savepath', type=str, default='results_sparse_max_2/',
                         help='Path for checkpoints and logs')
     parser.add_argument('--resume', type=str, help='Checkpoint file to resume', default='../checkpoint.pt')
 
     args = parser.parse_args()
-
+    
+    # frame = inspect.currentframe()     
+    # gpu_tracker = MemTracker(frame)      # 创建显存检测对象
+    # gpu_tracker.track()
+    # global_vars._init()
+    # global_vars.set_value('gpu_tracker', gpu_tracker)
     main()
