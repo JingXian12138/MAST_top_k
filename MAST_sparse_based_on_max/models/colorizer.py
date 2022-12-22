@@ -63,6 +63,7 @@ class Colorizer(nn.Module):
         :param mode:
         :return:
         """
+        dil_int = 16
         # For frame interval < dil_int, no need for deformable resampling
         nref = len(feats_r)
         nsearch = len([x for x in ref_index if current_ind - x > dil_int])

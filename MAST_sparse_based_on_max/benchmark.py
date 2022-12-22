@@ -88,6 +88,36 @@ def test(dataloader, model, log):
             elif args.ref == 3:
                 ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*15,-mem_gap)))[::-1]
                 ref_index = sorted(list(set(ref_index)))
+            elif args.ref == 4:
+                ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*5,-mem_gap)))[::-1]
+                ref_index = sorted(list(set(ref_index)))
+            elif args.ref == 5:
+                ref_index = [0] + list(filter(lambda x: x < i, range(0,i,5)))[::-1]+list(filter(lambda x:x>0,range(i,i-mem_gap*3,-mem_gap)))[::-1]
+                ref_index = sorted(list(set(ref_index)))
+            elif args.ref == 6:
+                ref_index = list(filter(lambda x: x <= i, [0,3,5])) + list(filter(lambda x: x < i-30, range(0,i,10)))[::-1]+list(filter(lambda x:x>0,range(i,i-mem_gap*5,-mem_gap)))[::-1]
+                ref_index = sorted(list(set(ref_index)))
+            elif args.ref == 7:
+                ref_index = [0]+list(filter(lambda x:x>0,range(i,i-mem_gap*55,-mem_gap)))[::-1]
+                ref_index = sorted(list(set(ref_index)))
+            elif args.ref == 8: # 0.65956 dil_int = 20
+                ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*20,-mem_gap)))[::-1]
+                ref_index = sorted(list(set(ref_index)))
+            elif args.ref == 9: # 0.659324 dil_int = 20
+                ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*25,-mem_gap)))[::-1]
+                ref_index = sorted(list(set(ref_index)))
+            elif args.ref == 10: # dil_int = 20 17张图（ref=3和8中间情况）
+                ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*17,-mem_gap)))[::-1]
+                ref_index = sorted(list(set(ref_index)))
+            elif args.ref == 11: # dil_int = 20 18张图（ref=3和8中间情况）
+                ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*18,-mem_gap)))[::-1]
+                ref_index = sorted(list(set(ref_index)))
+            elif args.ref == 12: # dil_int = 20 16张图（ref=3和8中间情况）
+                ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*16,-mem_gap)))[::-1]
+                ref_index = sorted(list(set(ref_index)))
+            elif args.ref == 13: # dil_int = 20 19张图（ref=3和8中间情况）
+                ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*19,-mem_gap)))[::-1]
+                ref_index = sorted(list(set(ref_index)))
             else:
                 raise NotImplementedError
 
@@ -177,18 +207,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='MAST')
 
     # Data options
-    parser.add_argument('--ref', type=int, default=3)
+    # details => excel文件
+    # *best ref=11 dil_int=16 
+
+    parser.add_argument('--ref', type=int, default=11)
 
     parser.add_argument('--datapath', help='Data path for Davis', default='/dataset/dusen/DAVIS/')
-    parser.add_argument('--savepath', type=str, default='results_sparse_max_2/',
+    parser.add_argument('--savepath', type=str, default='results_sparse_max_ref_11_16/',
                         help='Path for checkpoints and logs')
     parser.add_argument('--resume', type=str, help='Checkpoint file to resume', default='../checkpoint.pt')
 
     args = parser.parse_args()
     
-    # frame = inspect.currentframe()     
-    # gpu_tracker = MemTracker(frame)      # 创建显存检测对象
-    # gpu_tracker.track()
-    # global_vars._init()
-    # global_vars.set_value('gpu_tracker', gpu_tracker)
     main()
