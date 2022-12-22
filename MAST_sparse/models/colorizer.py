@@ -94,11 +94,12 @@ class Colorizer(nn.Module):
             corrs[ind] = corrs[ind].reshape([b, self.P*self.P, h1*w1])
 
         # 对参考域中的像素点进行选择，只挑选较大的那部分
+        k = 20 # k=20时效果最好，可以继续调参但最好与后面得ref_index一起调
         for c in corrs:
             # print("c.shape", c.shape) # 1,625,27360
             # print(type(c))
             # med = torch.median(c, axis=1).values
-            top_k_val = torch.topk(c,10,dim=1,sorted=True).values
+            top_k_val = torch.topk(c,k,dim=1,sorted=True).values
             tmp = top_k_val[0][-1,:]
             # print("tmp.shape", tmp.shape)
             
