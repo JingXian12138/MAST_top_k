@@ -84,7 +84,7 @@ class Colorizer(nn.Module):
             col_0 = col_0.reshape(b,c,N,h,w)
             ##
             corr = (feats_t.unsqueeze(2) * col_0).sum(1)   # (b, N, h, w)
-
+            col_0 = []
             corr = corr.reshape([b, self.P * self.P, h * w])
             corrs.append(corr)
 
@@ -98,8 +98,15 @@ class Colorizer(nn.Module):
             # print("c.shape", c.shape) # 1,625,27360
             # print(type(c))
             # med = torch.median(c, axis=1).values
-            max = torch.max(c, dim=1).values
-            c[c<max] = 0
+            top_k_val = torch.topk(c,10,dim=1,sorted=True).values
+            tmp = top_k_val[0][-1,:]
+            # print("tmp.shape", tmp.shape)
+            
+            # print(top_k_val.shape) # torch.Size([1, 10, 27360])
+            # max = torch.max(c, dim=1).values
+            # print("max.shape", max.shape)
+            c[c<tmp] = 0
+
 
         # print("len(corr)", len(corrs))
         # print("corr[0].shape", corrs[0].shape)
