@@ -5,11 +5,7 @@ from .submodule import one_hot
 from spatial_correlation_sampler import SpatialCorrelationSampler
 from .deform_im2col_util import deform_im2col
 from .deform_im2col_util import deform_im2col_max
-import pdb
 import numpy as np
-from gpu_mem_track import MemTracker
-import inspect
-from . import global_vars
 
 
 
@@ -87,8 +83,9 @@ class Colorizer(nn.Module):
         # # print("im_col1[0].shape: ", im_col1[0].shape) # 1,4375,27360 # 1,7*25*25,120*228
         # image_uf = im_col0 + im_col1
         # offset0 = []
-        print("nsearch: ",nsearch)
-        print("nref: ",nref)
+
+        # print("nsearch: ",nsearch)
+        # print("nref: ",nref)
 
         # out.shape torch.Size([1, 64, 625, 27360])
         for searching_index in range(nsearch):
