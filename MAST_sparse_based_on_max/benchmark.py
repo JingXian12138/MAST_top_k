@@ -64,7 +64,9 @@ def test(dataloader, model, log):
     log.info("Start testing.")
 
     for b_i, (images_rgb, annotations) in enumerate(dataloader):
-        if b_i == 1:
+        if b_i == 0:
+            continue
+        if b_i == 2:
             break
         fb = AverageMeter(); jb = AverageMeter()
 
@@ -75,8 +77,8 @@ def test(dataloader, model, log):
         outputs = [annotations[0].contiguous()]
 
         for i in range(N-1):
-            if i == 5:
-                break
+            # if i == 5:
+            #     break
             mem_gap = 2
             # ref_index = [i]
             if args.ref == 0:
