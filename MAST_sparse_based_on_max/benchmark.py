@@ -64,10 +64,10 @@ def test(dataloader, model, log):
     log.info("Start testing.")
 
     for b_i, (images_rgb, annotations) in enumerate(dataloader):
-        if b_i == 0:
-            continue
-        if b_i == 2:
-            break
+        # if b_i == 0:
+        #     continue
+        # if b_i == 2:
+        #     break
         fb = AverageMeter(); jb = AverageMeter()
 
         images_rgb = [r.cuda() for r in images_rgb]
@@ -88,39 +88,39 @@ def test(dataloader, model, log):
                 ref_index = [0] + list(filter(lambda x: x > 0, range(i, i - mem_gap * 3, -mem_gap)))[::-1]
             elif args.ref == 2:
                 ref_index = [i]
-            # elif args.ref == 3:
-            #     ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*15,-mem_gap)))[::-1]
-            #     ref_index = sorted(list(set(ref_index)))
-            # elif args.ref == 4:
-            #     ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*5,-mem_gap)))[::-1]
-            #     ref_index = sorted(list(set(ref_index)))
-            # elif args.ref == 5:
-            #     ref_index = [0] + list(filter(lambda x: x < i, range(0,i,5)))[::-1]+list(filter(lambda x:x>0,range(i,i-mem_gap*3,-mem_gap)))[::-1]
-            #     ref_index = sorted(list(set(ref_index)))
-            # elif args.ref == 6:
-            #     ref_index = list(filter(lambda x: x <= i, [0,3,5])) + list(filter(lambda x: x < i-30, range(0,i,10)))[::-1]+list(filter(lambda x:x>0,range(i,i-mem_gap*5,-mem_gap)))[::-1]
-            #     ref_index = sorted(list(set(ref_index)))
-            # elif args.ref == 7:
-            #     ref_index = [0]+list(filter(lambda x:x>0,range(i,i-mem_gap*55,-mem_gap)))[::-1]
-            #     ref_index = sorted(list(set(ref_index)))
-            # elif args.ref == 8: # 0.65956 dil_int = 20
-            #     ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*20,-mem_gap)))[::-1]
-            #     ref_index = sorted(list(set(ref_index)))
-            # elif args.ref == 9: # 0.659324 dil_int = 20
-            #     ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*25,-mem_gap)))[::-1]
-            #     ref_index = sorted(list(set(ref_index)))
-            # elif args.ref == 10: # dil_int = 20 17张图（ref=3和8中间情况）
-            #     ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*17,-mem_gap)))[::-1]
-            #     ref_index = sorted(list(set(ref_index)))
-            # elif args.ref == 11: # dil_int = 20 18张图（ref=3和8中间情况）
-            #     ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*18,-mem_gap)))[::-1]
-            #     ref_index = sorted(list(set(ref_index)))
-            # elif args.ref == 12: # dil_int = 20 16张图（ref=3和8中间情况）
-            #     ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*16,-mem_gap)))[::-1]
-            #     ref_index = sorted(list(set(ref_index)))
-            # elif args.ref == 13: # dil_int = 20 19张图（ref=3和8中间情况）
-            #     ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*19,-mem_gap)))[::-1]
-            #     ref_index = sorted(list(set(ref_index)))
+            elif args.ref == 3:
+                ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*15,-mem_gap)))[::-1]
+                ref_index = sorted(list(set(ref_index)))
+            elif args.ref == 4:
+                ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*5,-mem_gap)))[::-1]
+                ref_index = sorted(list(set(ref_index)))
+            elif args.ref == 5:
+                ref_index = [0] + list(filter(lambda x: x < i, range(0,i,5)))[::-1]+list(filter(lambda x:x>0,range(i,i-mem_gap*3,-mem_gap)))[::-1]
+                ref_index = sorted(list(set(ref_index)))
+            elif args.ref == 6:
+                ref_index = list(filter(lambda x: x <= i, [0,3,5])) + list(filter(lambda x: x < i-30, range(0,i,10)))[::-1]+list(filter(lambda x:x>0,range(i,i-mem_gap*5,-mem_gap)))[::-1]
+                ref_index = sorted(list(set(ref_index)))
+            elif args.ref == 7:
+                ref_index = [0]+list(filter(lambda x:x>0,range(i,i-mem_gap*55,-mem_gap)))[::-1]
+                ref_index = sorted(list(set(ref_index)))
+            elif args.ref == 8: # 0.65956 dil_int = 20
+                ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*20,-mem_gap)))[::-1]
+                ref_index = sorted(list(set(ref_index)))
+            elif args.ref == 9: # 0.659324 dil_int = 20
+                ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*25,-mem_gap)))[::-1]
+                ref_index = sorted(list(set(ref_index)))
+            elif args.ref == 10: # dil_int = 20 17张图（ref=3和8中间情况）
+                ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*17,-mem_gap)))[::-1]
+                ref_index = sorted(list(set(ref_index)))
+            elif args.ref == 11: # dil_int = 20 18张图（ref=3和8中间情况）
+                ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*18,-mem_gap)))[::-1]
+                ref_index = sorted(list(set(ref_index)))
+            elif args.ref == 12: # dil_int = 20 16张图（ref=3和8中间情况）
+                ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*16,-mem_gap)))[::-1]
+                ref_index = sorted(list(set(ref_index)))
+            elif args.ref == 13: # dil_int = 20 19张图（ref=3和8中间情况）
+                ref_index = list(filter(lambda x: x <= i, [0,3,5,7,9]))+list(filter(lambda x:x>0,range(i,i-mem_gap*19,-mem_gap)))[::-1]
+                ref_index = sorted(list(set(ref_index)))
             else:
                 raise NotImplementedError
 
@@ -220,10 +220,10 @@ if __name__ == '__main__':
     #                     help='Path for checkpoints and logs')
     # parser.add_argument('--resume', type=str, help='Checkpoint file to resume', default='../checkpoint.pt')
 
-    parser.add_argument('--ref', type=int, default=1)
+    parser.add_argument('--ref', type=int, default=11)
 
     parser.add_argument('--datapath', help='Data path for Davis', default='/dataset/dusen/DAVIS/')
-    parser.add_argument('--savepath', type=str, default='results_sparse_topk/',
+    parser.add_argument('--savepath', type=str, default='results_sparse_topk_11/',
                         help='Path for checkpoints and logs')
     parser.add_argument('--resume', type=str, help='Checkpoint file to resume', default='../checkpoint.pt')
     args = parser.parse_args()
